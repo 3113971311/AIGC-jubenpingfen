@@ -11,6 +11,7 @@ const form = reactive({
   max_chars: 100000,
   points_per_10000_chars: 1,
   active_model_id: '',
+  score_timeout: 300,
 })
 
 onMounted(async () => {
@@ -26,6 +27,7 @@ onMounted(async () => {
       if (item.key === 'max_chars') form.max_chars = isNaN(v) ? 100000 : v
       if (item.key === 'points_per_10000_chars') form.points_per_10000_chars = isNaN(v) ? 1 : v
       if (item.key === 'active_model_id') form.active_model_id = item.value || ''
+      if (item.key === 'score_timeout') form.score_timeout = isNaN(v) ? 300 : v
     }
   } catch {} finally { loading.value = false }
 })
@@ -37,6 +39,7 @@ async function handleSave() {
       { key: 'max_chars', value: String(form.max_chars) },
       { key: 'points_per_10000_chars', value: String(form.points_per_10000_chars) },
       { key: 'active_model_id', value: form.active_model_id },
+      { key: 'score_timeout', value: String(form.score_timeout) },
     ])
     ElMessage.success('设置已保存')
   } catch {} finally { saving.value = false }
@@ -95,6 +98,24 @@ async function handleSave() {
         <el-select v-model="form.active_model_id" placeholder="选择模型" style="width:260px;" size="large">
           <el-option v-for="m in models" :key="m.id" :label="`${m.provider} / ${m.model_name}`" :value="String(m.id)" />
         </el-select>
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(255,149,0,0.1);color:#ff9500;">
+          <el-icon :size="22"><Timer /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">AI 评分超时（秒）</div>
+          <div class="setting-row-desc">AI 调用超时时间，建议 180-600 秒</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input-number v-model="form.score_timeout" :min="0" :max="3600" :step="30" :controls="false" size="large" style="width:120px;" />
+        <span class="setting-row-hint">{{ form.score_timeout === 0 ? '不限制' : Math.round(form.score_timeout / 60) + ' 分钟' }}</span>
       </div>
     </div>
 

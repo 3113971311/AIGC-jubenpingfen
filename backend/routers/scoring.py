@@ -41,7 +41,8 @@ async def _run_scoring_background(score_id: int, script_content: str, model_conf
                 pass
 
         await update_progress("正在准备评分...")
-        result = await score_script(script_content, model_config, progress_callback=update_progress)
+        timeout = get_config_int(db, "score_timeout", 300)
+        result = await score_script(script_content, model_config, timeout=timeout, progress_callback=update_progress)
 
         placeholder.interestingness = result["interestingness"]
         placeholder.popularity = result["popularity"]

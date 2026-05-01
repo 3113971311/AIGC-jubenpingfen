@@ -173,6 +173,13 @@ class PointsLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ===== Feedback =====
+
+class FeedbackRequest(BaseModel):
+    contact: str = Field(default="", max_length=200)
+    content: str = Field(min_length=1, max_length=5000)
+
+
 # ===== Admin Stats =====
 
 class AdminStats(BaseModel):

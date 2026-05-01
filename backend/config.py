@@ -2,6 +2,9 @@ import os
 import secrets
 import sys
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+
 _DEV_DEFAULTS = {
     "JWT_SECRET_KEY": "change-me-to-a-random-string-in-production",
     "ENCRYPTION_KEY": "change-me-32-bytes-key-here!!",
@@ -17,6 +20,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./script_scorer.db")
 
 # Encryption key for API keys
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", _DEV_DEFAULTS["ENCRYPTION_KEY"])
+
+# SMTP (for feedback emails)
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.qq.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+FEEDBACK_RECIPIENT = os.getenv("FEEDBACK_RECIPIENT", "3113971311@qq.com")
 
 # File upload
 UPLOAD_DIR = "uploads"

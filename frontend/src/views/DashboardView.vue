@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listScripts, uploadScript, createTextScript, scoreScript, deleteScript, getScoreHistory, getScoreProgress } from '../api'
+import { listScripts, uploadScript, createTextScript, scoreScript, deleteScript, getScoreHistory, getScoreProgress, submitFeedback } from '../api'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -116,7 +116,7 @@ async function handleScore(scriptId) {
     progressTimer = setInterval(() => { progressState.elapsed++ }, 1000)
 
     const POLL_INTERVAL = 2000
-    const MAX_WAIT = 360000
+    const MAX_WAIT = 600000 // 10 分钟安全上限
 
     const poll = async () => {
       try {
@@ -192,6 +192,29 @@ function fmtDate(d) {
   const date = s.endsWith('Z') || s.includes('+') ? new Date(s) : new Date(s + 'Z')
   return date.toLocaleString('zh-CN')
 }
+
+// 反馈弹窗
+const feedbackVisible = ref(false)
+const feedbackForm = reactive({ contact: '', content: '' })
+const feedbackSending = ref(false)
+
+async function handleFeedback() {
+  if (!feedbackForm.content.trim()) return ElMessage.warning('请输入反馈内容')
+  feedbackSending.value = true
+  try {
+    const r = await submitFeedback({ contact: feedbackForm.contact.trim(), content: feedbackForm.content.trim() })
+    if (r.data.ok) {
+      ElMessage.success(r.data.message || '反馈已发送')
+      feedbackVisible.value = false
+      feedbackForm.contact = ''
+      feedbackForm.content = ''
+    } else {
+      ElMessage.error(r.data.message || '发送失败')
+    }
+  } catch {} finally {
+    feedbackSending.value = false
+  }
+}
 </script>
 
 <template>
@@ -259,6 +282,26 @@ function fmtDate(d) {
       </div>
     </div>
   </teleport>
+
+  <!-- 反馈悬浮气泡 -->
+  <teleport to="body">
+    <div class="feedback-bubble" @click="feedbackVisible = true" title="问题反馈">
+      <el-icon :size="22"><ChatDotSquare /></el-icon>
+    </div>
+  </teleport>
+
+  <!-- 反馈弹窗 -->
+  <el-dialog v-model="feedbackVisible" title="问题反馈" width="460px" :close-on-click-modal="false" destroy-on-close>
+    <div class="feedback-body">
+      <p class="feedback-tip">欢迎提出宝贵意见，我们会尽快回复。</p>
+      <el-input v-model="feedbackForm.contact" placeholder="联系方式（邮箱/微信，选填）" maxlength="200" clearable />
+      <el-input v-model="feedbackForm.content" type="textarea" placeholder="请描述您的问题或建议..." :rows="5" resize="vertical" maxlength="5000" show-word-limit />
+    </div>
+    <template #footer>
+      <el-button @click="feedbackVisible = false">取消</el-button>
+      <el-button type="primary" :loading="feedbackSending" @click="handleFeedback">发送反馈</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -285,6 +328,33 @@ function fmtDate(d) {
 @keyframes progress-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(430%); } }
 .progress-text { font-size: 14px; color: var(--text-primary); margin-bottom: 6px; }
 .progress-elapsed { font-size: 12px; color: var(--text-tertiary); }
+
+.feedback-bubble {
+  position: fixed; bottom: 28px; right: 28px; z-index: 9990;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-lg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--accent);
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  user-select: none;
+}
+.feedback-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px rgba(0, 122, 255, 0.18);
+  background: var(--glass-bg-hover);
+}
+.feedback-body {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.feedback-tip {
+  font-size: 14px; color: var(--text-secondary); margin: 0;
+}
 
 @media (max-width: 640px) { .upload-row { grid-template-columns: 1fr; } .script-meta { flex-direction: column; gap: 4px; } }
 </style>

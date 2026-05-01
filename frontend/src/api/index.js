@@ -89,4 +89,7 @@ export const adminGetStats = () => api.get('/admin/stats')
 export const adminGetSettings = () => api.get('/admin/settings')
 export const adminUpdateSettings = (data) => api.put('/admin/settings', data)
 
+// Feedback
+export const submitFeedback = (data) => api.post('/feedback', data)
+
 export default api
