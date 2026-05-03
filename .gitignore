@@ -11,5 +11,8 @@ dist/
 # User uploads
 backend/uploads/
 
+# Build generated dependencies
+backend/packages/
+
 # Environment
 .env
