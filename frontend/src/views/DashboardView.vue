@@ -74,14 +74,15 @@ async function loadScripts() {
 async function loadScores() {
   try {
     const r = await getScoreHistory({ page_size: 200 })
+    const finishedIds = new Set(r.data.filter(s => s.overall !== 0).map(s => s.script_id))
+    const successIds = new Set(r.data.filter(s => s.overall > 0).map(s => s.script_id))
     const allScoreIds = new Set(r.data.map(s => s.script_id))
-    const completedIds = new Set(r.data.filter(s => s.overall > 0).map(s => s.script_id))
     for (const id of scoringSet.value) {
-      if (completedIds.has(id)) scoringSet.value.delete(id)
+      if (finishedIds.has(id)) scoringSet.value.delete(id)
       else if (!allScoreIds.has(id)) scoringSet.value.delete(id)
     }
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
-    scoredIds.value = new Set([...completedIds, ...scoringSet.value])
+    scoredIds.value = new Set([...successIds, ...scoringSet.value])
   } catch {}
 }
 
@@ -123,19 +124,33 @@ async function handleScore(scriptId) {
         const pr = await getScoreProgress(scoreId)
         progressState.progress = pr.data.progress || '处理中...'
 
-        if (pr.data.overall > 0) {
+        if (pr.data.overall !== 0) {
           stopPolling()
           progressState.visible = false
           scoringSet.value.delete(scriptId)
           sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
           scoredIds.value.add(scriptId)
           await auth.refreshUser()
-          ElMessage.success('评分完成')
-          router.push(`/score/${scoreId}`)
+          if (pr.data.overall > 0) {
+            ElMessage.success('评分完成')
+            router.push(`/score/${scoreId}`)
+          } else {
+            ElMessage.error(pr.data.progress || '评分失败，积分已退还')
+            await loadScores()
+          }
           return
         }
         pollTimer = setTimeout(poll, POLL_INTERVAL)
-      } catch {
+      } catch (e) {
+        if (e.response?.status === 404) {
+          stopPolling()
+          progressState.visible = false
+          scoringSet.value.delete(scriptId)
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
+          ElMessage.error('评分失败，积分已退还')
+          await loadScores()
+          return
+        }
         if (progressState.visible) pollTimer = setTimeout(poll, POLL_INTERVAL)
       }
     }

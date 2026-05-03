@@ -41,7 +41,7 @@ async def _run_scoring_background(score_id: int, script_content: str, model_conf
                 pass
 
         await update_progress("正在准备评分...")
-        timeout = get_config_int(db, "score_timeout", 300)
+        timeout = get_config_int(db, "score_timeout", 300) or 300
         result = await score_script(script_content, model_config, timeout=timeout, progress_callback=update_progress)
 
         placeholder.interestingness = result["interestingness"]
@@ -62,7 +62,8 @@ async def _run_scoring_background(score_id: int, script_content: str, model_conf
             if placeholder:
                 pts = placeholder.points_cost
                 sid = placeholder.script_id
-                db.delete(placeholder)
+                placeholder.progress = "评分失败，积分已退还"
+                placeholder.overall = -1
                 refund_points(db, user_id, pts, f"评分失败退款: 剧本#{sid}")
                 db.commit()
         except Exception:
