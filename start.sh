@@ -4,13 +4,14 @@ set -e
 cd backend
 
 echo "[start.sh] Restoring database from object storage..."
-PYTHONPATH=./packages python3 -c "
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from db_backup import restore_db, restore_uploads
-restore_db()
-restore_uploads()
-"
+PYTHONPATH=./packages python3 db_backup.py restore
+
+mkdir -p /tmp/uploads
+mkdir -p /tmp/email_logs
+mkdir -p /tmp/pending_mails
+mkdir -p /tmp/script_images
+mkdir -p /tmp/scoring_results
+mkdir -p /tmp/script_scores
 
 echo "[start.sh] Initializing admin account..."
 PYTHONPATH=./packages python3 init_admin.py

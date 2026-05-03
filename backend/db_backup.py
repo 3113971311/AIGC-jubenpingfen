@@ -151,5 +151,14 @@ def start_background_backup(interval_sec: int = 60):
 
 
 if __name__ == "__main__":
-    restore_db()
-    restore_uploads()
+    import sys
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd == "restore":
+        restore_db()
+        restore_uploads()
+    elif cmd == "backup":
+        backup_db()
+        backup_uploads()
+    else:
+        restore_db()
+        restore_uploads()
