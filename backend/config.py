@@ -36,24 +36,13 @@ DEFAULT_MAX_CHARS = 100000  # 十万字
 
 
 def _check_production_keys():
-    """Startup check: refuse to run with default secrets in production."""
+    """Startup check: warn about default secrets in production."""
     warnings = []
     for name, default in _DEV_DEFAULTS.items():
         if os.getenv(name, default) == default:
             warnings.append(name)
     if warnings:
-        # Generate a usable random key so the dev experience isn't blocked
-        hint = secrets.token_urlsafe(32)
-        sys.stderr.write(
-            "\n"
-            "=" * 60 + "\n"
-            "  SECURITY WARNING: 以下密钥使用了默认值，生产环境必须修改:\n"
-            f"  {', '.join(warnings)}\n\n"
-            "  设置环境变量:\n"
-            f"  export JWT_SECRET_KEY={hint}\n"
-            f"  export ENCRYPTION_KEY={secrets.token_urlsafe(32)}\n"
-            "=" * 60 + "\n\n"
-        )
+        print(f"[WARN] Default secrets detected: {', '.join(warnings)}", file=sys.stderr)
 
 
 _check_production_keys()
