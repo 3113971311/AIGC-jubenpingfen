@@ -77,6 +77,7 @@ def submit_feedback(
 
 
 def _now_str():
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
 
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tz = timezone(timedelta(hours=8))
+    return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
