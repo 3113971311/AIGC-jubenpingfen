@@ -54,8 +54,11 @@ onMounted(load)
         <el-table-column label="剧情" width="55" align="center">
           <template #default="{row}"><span :style="`color:${getColor(row.plot_smoothness)}`">{{ row.plot_smoothness }}</span></template>
         </el-table-column>
-        <el-table-column prop="points_cost" label="消耗" width="55" align="center">
+        <el-table-column prop="points_cost" label="积分" width="55" align="center">
           <template #default="{row}"><span style="font-size:12px;color:var(--text-tertiary);">{{ row.points_cost }}</span></template>
+        </el-table-column>
+        <el-table-column label="耗时" width="80" align="center">
+          <template #default="{row}"><span style="font-size:13px;">{{ row.elapsed ? row.elapsed + 's' : '-' }}</span></template>
         </el-table-column>
         <el-table-column label="时间" width="170">
           <template #default="{row}"><span style="font-size:13px;">{{ fmtTime(row.created_at) }}</span></template>

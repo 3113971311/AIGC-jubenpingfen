@@ -11,7 +11,7 @@ const scripts = ref([])
 const uploading = ref(false)
 const pasting = ref(false)
 const scoringId = ref(null)
-const scoredIds = ref(new Set())
+const scoredIds = ref([])
 
 const textForm = reactive({ title: '', content: '' })
 
@@ -66,7 +66,8 @@ watch(() => textForm.content, (val) => {
 
 const STORAGE_KEY = 'scoring_in_progress'
 const storageScoring = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]')
-const scoringSet = ref(new Set(storageScoring))
+const scoringSet = ref(storageScoring)
+const scoreInfoMap = ref({})  // script_id → { elapsed, provider, model_name, overall }
 
 async function loadScripts() {
   try { const r = await listScripts({ page: 1, page_size: 50 }); scripts.value = r.data } catch {}
@@ -74,15 +75,23 @@ async function loadScripts() {
 async function loadScores() {
   try {
     const r = await getScoreHistory({ page_size: 200 })
-    const finishedIds = new Set(r.data.filter(s => s.overall !== 0).map(s => s.script_id))
-    const successIds = new Set(r.data.filter(s => s.overall > 0).map(s => s.script_id))
-    const allScoreIds = new Set(r.data.map(s => s.script_id))
-    for (const id of scoringSet.value) {
-      if (finishedIds.has(id)) scoringSet.value.delete(id)
-      else if (!allScoreIds.has(id)) scoringSet.value.delete(id)
+    const finishedIds = r.data.filter(s => s.overall !== 0).map(s => s.script_id)
+    const successIds = r.data.filter(s => s.overall > 0).map(s => s.script_id)
+    const allScoreIds = r.data.map(s => s.script_id)
+    const map = {}
+    for (const s of r.data) {
+      if (s.overall > 0 && !map[s.script_id]) {
+        map[s.script_id] = { elapsed: s.elapsed, provider: s.provider, model_name: s.model_name, overall: s.overall }
+      }
     }
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
-    scoredIds.value = new Set([...successIds, ...scoringSet.value])
+    scoreInfoMap.value = map
+    scoringSet.value = scoringSet.value.filter(id => {
+      if (finishedIds.includes(id)) return false
+      if (!allScoreIds.includes(id)) return false
+      return true
+    })
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
+    scoredIds.value = [...new Set([...successIds, ...scoringSet.value])]
   } catch {}
 }
 
@@ -100,9 +109,9 @@ async function handleScore(scriptId) {
   const title = script?.title || '剧本'
 
   scoringId.value = scriptId
-  scoringSet.value.add(scriptId)
-  scoredIds.value.add(scriptId)
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
+  if (!scoringSet.value.includes(scriptId)) scoringSet.value.push(scriptId)
+  if (!scoredIds.value.includes(scriptId)) scoredIds.value.push(scriptId)
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
 
   try {
     const r = await scoreScript(scriptId, 0)
@@ -127,12 +136,13 @@ async function handleScore(scriptId) {
         if (pr.data.overall !== 0) {
           stopPolling()
           progressState.visible = false
-          scoringSet.value.delete(scriptId)
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
-          scoredIds.value.add(scriptId)
+          scoringSet.value = scoringSet.value.filter(id => id !== scriptId)
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
+          if (!scoredIds.value.includes(scriptId)) scoredIds.value.push(scriptId)
           await auth.refreshUser()
           if (pr.data.overall > 0) {
-            ElMessage.success('评分完成')
+            const elapsed = pr.data.elapsed ? ` (${pr.data.elapsed}秒)` : ''
+            ElMessage.success('评分完成' + elapsed)
             router.push(`/score/${scoreId}`)
           } else {
             ElMessage.error(pr.data.progress || '评分失败，积分已退还')
@@ -145,8 +155,8 @@ async function handleScore(scriptId) {
         if (e.response?.status === 404) {
           stopPolling()
           progressState.visible = false
-          scoringSet.value.delete(scriptId)
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
+          scoringSet.value = scoringSet.value.filter(id => id !== scriptId)
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
           ElMessage.error('评分失败，积分已退还')
           await loadScores()
           return
@@ -158,8 +168,8 @@ async function handleScore(scriptId) {
     // 给后端 1 秒缓冲时间再开始轮询
     pollTimer = setTimeout(poll, 1000)
   } catch (e) {
-    scoringSet.value.delete(scriptId)
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...scoringSet.value]))
+    scoringSet.value = scoringSet.value.filter(id => id !== scriptId)
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
   } finally {
     scoringId.value = null
   }
@@ -269,10 +279,14 @@ async function handleFeedback() {
         <div class="script-meta">
           <span>字数: {{ s.char_count.toLocaleString() }}</span>
           <span>{{ fmtDate(s.created_at) }}</span>
+          <template v-if="scoreInfoMap[s.id]">
+            <span style="color:var(--accent)">{{ scoreInfoMap[s.id].provider }} {{ scoreInfoMap[s.id].model_name }}</span>
+            <span v-if="scoreInfoMap[s.id].elapsed" style="color:var(--text-tertiary)">耗时 {{ scoreInfoMap[s.id].elapsed }}s</span>
+          </template>
         </div>
         <div class="script-actions">
-          <el-button v-if="scoringSet.has(s.id)" type="warning" size="small" disabled>评分中...</el-button>
-          <el-button v-else-if="scoredIds.has(s.id)" type="success" size="small" disabled>已评分</el-button>
+          <el-button v-if="scoringSet.includes(s.id)" type="warning" size="small" disabled>评分中...</el-button>
+          <el-button v-else-if="scoredIds.includes(s.id)" type="success" size="small" disabled>已评分</el-button>
           <el-button v-else type="primary" size="small" :loading="scoringId === s.id" @click="handleScore(s.id)">AI 评分</el-button>
           <el-button size="small" @click="router.push(`/score/${s.id}`)">查看</el-button>
           <el-button size="small" type="danger" @click="handleDelete(s.id)">删除</el-button>

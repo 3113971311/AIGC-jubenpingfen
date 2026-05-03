@@ -310,9 +310,14 @@ async def score_script(script_content: str, model_config: ModelConfig, timeout: 
         if progress_callback:
             await progress_callback(msg)
 
-    await report("正在调用AI模型进行五维度评分分析（预计2-5分钟）...")
+    await report("正在调用AI模型进行五维度评分分析...")
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    # timeout=0 表示不限制超时
+    if timeout > 0:
+        timeout_config = httpx.Timeout(connect=30.0, read=float(timeout), write=60.0, pool=30.0)
+    else:
+        timeout_config = httpx.Timeout(connect=30.0, read=None, write=60.0, pool=30.0)  # 不限读取超时
+    async with httpx.AsyncClient(timeout=timeout_config) as client:
         resp = await client.post(
             f"{model_config.api_base}/chat/completions",
             headers={
@@ -323,7 +328,7 @@ async def score_script(script_content: str, model_config: ModelConfig, timeout: 
                 "model": model_config.model_name,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
-                "max_tokens": 16384,
+                "max_tokens": 32768,
             },
         )
         if resp.status_code != 200:
@@ -356,7 +361,11 @@ async def score_script_stream(script_content: str, model_config: ModelConfig, to
 
     full_response = ""
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    if timeout > 0:
+        timeout_config = httpx.Timeout(connect=30.0, read=float(timeout), write=60.0, pool=30.0)
+    else:
+        timeout_config = httpx.Timeout(connect=30.0, read=None, write=60.0, pool=30.0)
+    async with httpx.AsyncClient(timeout=timeout_config) as client:
         async with client.stream(
             "POST",
             f"{model_config.api_base}/chat/completions",
@@ -368,7 +377,7 @@ async def score_script_stream(script_content: str, model_config: ModelConfig, to
                 "model": model_config.model_name,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
-                "max_tokens": 16384,
+                "max_tokens": 32768,
                 "stream": True,
             },
         ) as resp:

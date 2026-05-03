@@ -253,7 +253,7 @@ def list_all_scores(
             logic=s.logic, action_smoothness=s.action_smoothness,
             plot_smoothness=s.plot_smoothness, overall=s.overall,
             analysis=s.analysis, suggestions=s.suggestions,
-            progress=s.progress,
+            progress=s.progress, elapsed=s.elapsed,
             created_at=s.created_at,
             provider=s.model_config.provider if s.model_config else None,
             model_name=s.model_config.model_name if s.model_config else None,
@@ -271,3 +271,33 @@ def get_stats(db: Session = Depends(get_db), _admin: User = Depends(get_admin_us
         total_scores=total_scores,
         total_points_consumed=total_consumed,
     )
+
+
+@router.get("/models/stats")
+def get_model_stats(db: Session = Depends(get_db), _admin: User = Depends(get_admin_user)):
+    """每个模型的评分耗时统计"""
+    models = db.query(ModelConfig).order_by(ModelConfig.created_at.desc()).all()
+    result = []
+    for m in models:
+        stats = db.query(
+            func.count(Score.id),
+            func.avg(Score.elapsed),
+            func.min(Score.elapsed),
+            func.max(Score.elapsed),
+        ).filter(
+            Score.model_config_id == m.id,
+            Score.elapsed > 0,
+            Score.overall > 0,
+        ).first()
+        count, avg_elapsed, min_elapsed, max_elapsed = stats
+        result.append({
+            "id": m.id,
+            "provider": m.provider,
+            "model_name": m.model_name,
+            "is_active": m.is_active,
+            "score_count": count or 0,
+            "avg_elapsed": round(avg_elapsed, 1) if avg_elapsed else None,
+            "min_elapsed": round(min_elapsed, 1) if min_elapsed else None,
+            "max_elapsed": round(max_elapsed, 1) if max_elapsed else None,
+        })
+    return result

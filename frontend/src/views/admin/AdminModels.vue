@@ -1,9 +1,10 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminListModels, adminCreateModel, adminUpdateModel, adminDeleteModel, adminToggleModel, adminTestModel } from '../../api'
+import { adminListModels, adminCreateModel, adminUpdateModel, adminDeleteModel, adminToggleModel, adminTestModel, adminGetModelStats } from '../../api'
 
 const models = ref([])
+const modelStats = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -62,8 +63,17 @@ async function handleToggle(m) {
 }
 async function loadModels() {
   loading.value=true
-  try { const r=await adminListModels(); models.value=r.data } catch {} finally { loading.value=false }
+  try {
+    const [mr, sr] = await Promise.all([adminListModels(), adminGetModelStats()])
+    models.value = mr.data
+    modelStats.value = sr.data
+  } catch {} finally { loading.value=false }
 }
+
+function getModelStat(id) {
+  return modelStats.value.find(s => s.id === id)
+}
+
 onMounted(loadModels)
 </script>
 
@@ -88,6 +98,27 @@ onMounted(loadModels)
         </el-table-column>
         <el-table-column label="状态" width="70" align="center">
           <template #default="{row}"><span class="dot" :class="row.is_active?'on':'off'" />{{ row.is_active?'启用':'禁用' }}</template>
+        </el-table-column>
+        <el-table-column label="评分次数" width="90" align="center">
+          <template #default="{row}">{{ getModelStat(row.id)?.score_count || 0 }}</template>
+        </el-table-column>
+        <el-table-column label="平均耗时" width="100" align="center">
+          <template #default="{row}">
+            <span v-if="getModelStat(row.id)?.avg_elapsed" style="font-weight:600;color:var(--accent)">{{ getModelStat(row.id).avg_elapsed }}s</span>
+            <span v-else style="color:var(--text-tertiary)">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="最快" width="80" align="center">
+          <template #default="{row}">
+            <span v-if="getModelStat(row.id)?.min_elapsed" style="color:var(--green)">{{ getModelStat(row.id).min_elapsed }}s</span>
+            <span v-else style="color:var(--text-tertiary)">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="最慢" width="80" align="center">
+          <template #default="{row}">
+            <span v-if="getModelStat(row.id)?.max_elapsed" style="color:var(--red)">{{ getModelStat(row.id).max_elapsed }}s</span>
+            <span v-else style="color:var(--text-tertiary)">-</span>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="{row}">

@@ -1,4 +1,5 @@
 import asyncio
+import time
 import traceback
 from datetime import datetime, timedelta, timezone
 
@@ -41,8 +42,10 @@ async def _run_scoring_background(score_id: int, script_content: str, model_conf
                 pass
 
         await update_progress("正在准备评分...")
-        timeout = get_config_int(db, "score_timeout", 300) or 300
+        timeout = get_config_int(db, "score_timeout", 600) or 0
+        t0 = time.time()
         result = await score_script(script_content, model_config, timeout=timeout, progress_callback=update_progress)
+        elapsed = round(time.time() - t0, 1)
 
         placeholder.interestingness = result["interestingness"]
         placeholder.popularity = result["popularity"]
@@ -52,17 +55,19 @@ async def _run_scoring_background(score_id: int, script_content: str, model_conf
         placeholder.overall = result["overall"]
         placeholder.analysis = result["analysis"]
         placeholder.suggestions = result.get("suggestions", "")
-        placeholder.progress = "评分完成"
+        placeholder.elapsed = elapsed
+        placeholder.progress = f"评分完成，耗时 {elapsed} 秒"
         db.commit()
 
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
+        err_msg = str(e)[:200]
         try:
             placeholder = db.query(Score).filter(Score.id == score_id).first()
             if placeholder:
                 pts = placeholder.points_cost
                 sid = placeholder.script_id
-                placeholder.progress = "评分失败，积分已退还"
+                placeholder.progress = f"评分失败: {err_msg}，积分已退还"
                 placeholder.overall = -1
                 refund_points(db, user_id, pts, f"评分失败退款: 剧本#{sid}")
                 db.commit()
@@ -93,15 +98,12 @@ async def do_score(
 
     existing = db.query(Score).filter(Score.script_id == script_id).first()
     if existing:
-        if existing.overall == 0 and existing.created_at:
-            age = datetime.now(timezone.utc) - existing.created_at.replace(tzinfo=timezone.utc)
-            if age > timedelta(minutes=15):
-                refund_points(db, existing.user_id, existing.points_cost,
-                              f"过期占位清理: 剧本#{script_id} 退款")
-                db.delete(existing)
-                db.commit()
-            else:
-                raise HTTPException(status_code=400, detail="该剧本评分进行中，请稍后再试")
+        if existing.overall == 0:
+            raise HTTPException(status_code=400, detail="该剧本评分进行中，请稍后再试")
+        elif existing.overall == -1:
+            # 上次评分失败，允许重新评分，删除旧的失败记录
+            db.delete(existing)
+            db.commit()
         else:
             raise HTTPException(status_code=400, detail="该剧本已评分，不能重复评分")
 
@@ -155,7 +157,7 @@ async def do_score(
         model_config_id=placeholder.model_config_id, points_cost=placeholder.points_cost,
         interestingness=0, popularity=0, logic=0, action_smoothness=0,
         plot_smoothness=0, overall=0, analysis="", suggestions="",
-        progress=placeholder.progress,
+        progress=placeholder.progress, elapsed=None,
         created_at=placeholder.created_at,
         provider=model_config.provider, model_name=model_config.model_name,
     )
@@ -177,6 +179,7 @@ def get_score_progress(
         script_id=score.script_id,
         progress=score.progress or ("评分完成" if score.overall > 0 else "正在准备..."),
         overall=score.overall,
+        elapsed=score.elapsed,
         created_at=score.created_at,
     )
 
@@ -200,7 +203,8 @@ def score_history(page: int = 1, page_size: int = 20, db: Session = Depends(get_
             interestingness=s.interestingness, popularity=s.popularity,
             logic=s.logic, action_smoothness=s.action_smoothness,
             plot_smoothness=s.plot_smoothness, overall=s.overall,
-            analysis=s.analysis, created_at=s.created_at,
+            analysis=s.analysis, suggestions=s.suggestions,
+            created_at=s.created_at, elapsed=s.elapsed,
             progress=s.progress,
             provider=s.model_config.provider if s.model_config else None,
             model_name=s.model_config.model_name if s.model_config else None,
@@ -221,7 +225,8 @@ def get_score(score_id: int, db: Session = Depends(get_db), current_user: User =
         interestingness=score.interestingness, popularity=score.popularity,
         logic=score.logic, action_smoothness=score.action_smoothness,
         plot_smoothness=score.plot_smoothness, overall=score.overall,
-        analysis=score.analysis, suggestions=score.suggestions, created_at=score.created_at,
+        analysis=score.analysis, suggestions=score.suggestions,
+        created_at=score.created_at, elapsed=score.elapsed,
         progress=score.progress,
         provider=score.model_config.provider if score.model_config else None,
         model_name=score.model_config.model_name if score.model_config else None,

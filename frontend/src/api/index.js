@@ -86,6 +86,7 @@ export const adminTestModel = (id) => api.post(`/admin/models/${id}/test`)
 
 export const adminListScores = (params) => api.get('/admin/scores', { params })
 export const adminGetStats = () => api.get('/admin/stats')
+export const adminGetModelStats = () => api.get('/admin/models/stats')
 export const adminGetSettings = () => api.get('/admin/settings')
 export const adminUpdateSettings = (data) => api.put('/admin/settings', data)
 

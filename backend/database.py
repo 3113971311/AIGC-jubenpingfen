@@ -25,11 +25,16 @@ def init_db():
         if "progress" not in cols:
             conn.exec_driver_sql("ALTER TABLE scores ADD COLUMN progress VARCHAR(500) DEFAULT '';")
             conn.commit()
+        # 重新获取列信息（可能已变更）
+        cols2 = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(scores);").fetchall()]
+        if "elapsed" not in cols2:
+            conn.exec_driver_sql("ALTER TABLE scores ADD COLUMN elapsed FLOAT DEFAULT 0.0;")
+            conn.commit()
 
     # 设置系统默认配置
     from models import SystemConfig
     db = SessionLocal()
-    defaults = {"max_chars": "100000", "points_per_10000_chars": "1", "active_model_id": "", "score_timeout": "300"}
+    defaults = {"max_chars": "100000", "points_per_10000_chars": "1", "active_model_id": "", "score_timeout": "600"}
     for k, v in defaults.items():
         if not db.query(SystemConfig).filter(SystemConfig.key == k).first():
             db.add(SystemConfig(key=k, value=v))

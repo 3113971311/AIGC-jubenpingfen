@@ -93,6 +93,8 @@ function renderContent(text) {
         <h1 class="page-title">{{ script.title }}</h1>
         <p class="page-subtitle">
           {{ fmtDate(score.created_at) }}
+          <template v-if="score.provider"> · {{ score.provider }} {{ score.model_name }}</template>
+          <template v-if="score.elapsed"> · 耗时 {{ score.elapsed }} 秒</template>
         </p>
       </div>
 

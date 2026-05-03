@@ -145,6 +145,7 @@ class ScoreResponse(BaseModel):
     analysis: Optional[str]
     suggestions: Optional[str] = None
     progress: Optional[str] = None
+    elapsed: Optional[float] = None
     provider: Optional[str] = None
     model_name: Optional[str] = None
     created_at: datetime
@@ -158,6 +159,7 @@ class ScoreProgressResponse(BaseModel):
     script_id: int
     progress: str
     overall: float  # 0=进行中, >0=已完成
+    elapsed: Optional[float] = None
     created_at: datetime
 
 

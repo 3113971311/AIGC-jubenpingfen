@@ -87,6 +87,7 @@ class Score(Base):
     analysis = Column(Text)
     suggestions = Column(Text)
     progress = Column(String(500), default="")
+    elapsed = Column(Float, default=0.0)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
