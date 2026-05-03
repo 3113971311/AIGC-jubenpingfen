@@ -4,9 +4,9 @@ requires = [ "nodejs-24" ]
 deps = [ "git" ]
 
 [dev]
-build = [ "bash", "./scripts/build.sh" ]
-run = [ "bash", "./scripts/start.sh" ]
+build = [ "bash", "./build.sh" ]
+run = [ "bash", "./start.sh" ]
 
 [deploy]
-build = [ "bash", "./scripts/build.sh" ]
-run = [ "bash", "./scripts/start.sh" ]
+build = [ "bash", "./build.sh" ]
+run = [ "bash", "./start.sh" ]
