@@ -10,8 +10,21 @@ from config import SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_USE_
 from database import get_db
 from models import User
 from schemas import FeedbackRequest
+from services.system_config import get_config
 
 router = APIRouter(prefix="/api", tags=["feedback"])
+
+
+def _get_smtp_config(db: Session):
+    """Read SMTP settings from system_config, falling back to env/config defaults."""
+    return {
+        "host": get_config(db, "smtp_host", SMTP_HOST),
+        "port": int(get_config(db, "smtp_port", str(SMTP_PORT))),
+        "username": get_config(db, "smtp_username", SMTP_USERNAME),
+        "password": get_config(db, "smtp_password", SMTP_PASSWORD),
+        "use_tls": get_config(db, "smtp_use_tls", "true" if SMTP_USE_TLS else "false").lower() == "true",
+        "recipient": get_config(db, "feedback_recipient", FEEDBACK_RECIPIENT),
+    }
 
 
 @router.post("/feedback")
@@ -21,10 +34,11 @@ def submit_feedback(
     db: Session = Depends(get_db),
 ):
     """Submit user feedback via email"""
-    if not SMTP_USERNAME or not SMTP_PASSWORD:
+    cfg = _get_smtp_config(db)
+    if not cfg["username"] or not cfg["password"]:
         return {
             "ok": False,
-            "message": "SMTP 未配置，请联系管理员设置 SMTP_USERNAME 和 SMTP_PASSWORD 环境变量",
+            "message": "SMTP 未配置，请前往系统设置中配置邮箱",
         }
 
     subject = f"[剧本评分系统] 用户反馈 - {current_user.username}"
@@ -40,19 +54,19 @@ def submit_feedback(
 
     try:
         msg = MIMEMultipart()
-        msg["From"] = SMTP_USERNAME
-        msg["To"] = FEEDBACK_RECIPIENT
+        msg["From"] = cfg["username"]
+        msg["To"] = cfg["recipient"]
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
-        if SMTP_USE_TLS:
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
+        if cfg["use_tls"]:
+            server = smtplib.SMTP(cfg["host"], cfg["port"], timeout=15)
             server.starttls()
         else:
-            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15)
+            server = smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=15)
 
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(SMTP_USERNAME, FEEDBACK_RECIPIENT, msg.as_string())
+        server.login(cfg["username"], cfg["password"])
+        server.sendmail(cfg["username"], cfg["recipient"], msg.as_string())
         server.quit()
 
         return {"ok": True, "message": "反馈已发送，感谢您的意见！"}

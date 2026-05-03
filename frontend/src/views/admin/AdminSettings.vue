@@ -12,6 +12,12 @@ const form = reactive({
   points_per_10000_chars: 1,
   active_model_id: '',
   score_timeout: 300,
+  smtp_host: 'smtp.qq.com',
+  smtp_port: 587,
+  smtp_username: '',
+  smtp_password: '',
+  smtp_use_tls: true,
+  feedback_recipient: '',
 })
 
 onMounted(async () => {
@@ -23,11 +29,18 @@ onMounted(async () => {
     ])
     models.value = modelsRes.data
     for (const item of settingsRes.data) {
-      const v = parseInt(item.value)
-      if (item.key === 'max_chars') form.max_chars = isNaN(v) ? 100000 : v
-      if (item.key === 'points_per_10000_chars') form.points_per_10000_chars = isNaN(v) ? 1 : v
-      if (item.key === 'active_model_id') form.active_model_id = item.value || ''
-      if (item.key === 'score_timeout') form.score_timeout = isNaN(v) ? 300 : v
+      const v = item.value
+      const n = parseInt(v)
+      if (item.key === 'max_chars') form.max_chars = isNaN(n) ? 100000 : n
+      if (item.key === 'points_per_10000_chars') form.points_per_10000_chars = isNaN(n) ? 1 : n
+      if (item.key === 'active_model_id') form.active_model_id = v || ''
+      if (item.key === 'score_timeout') form.score_timeout = isNaN(n) ? 300 : n
+      if (item.key === 'smtp_host') form.smtp_host = v || 'smtp.qq.com'
+      if (item.key === 'smtp_port') form.smtp_port = isNaN(n) ? 587 : n
+      if (item.key === 'smtp_username') form.smtp_username = v || ''
+      if (item.key === 'smtp_password') form.smtp_password = v || ''
+      if (item.key === 'smtp_use_tls') form.smtp_use_tls = v === 'true'
+      if (item.key === 'feedback_recipient') form.feedback_recipient = v || ''
     }
   } catch {} finally { loading.value = false }
 })
@@ -40,6 +53,12 @@ async function handleSave() {
       { key: 'points_per_10000_chars', value: String(form.points_per_10000_chars) },
       { key: 'active_model_id', value: form.active_model_id },
       { key: 'score_timeout', value: String(form.score_timeout) },
+      { key: 'smtp_host', value: form.smtp_host },
+      { key: 'smtp_port', value: String(form.smtp_port) },
+      { key: 'smtp_username', value: form.smtp_username },
+      { key: 'smtp_password', value: form.smtp_password },
+      { key: 'smtp_use_tls', value: form.smtp_use_tls ? 'true' : 'false' },
+      { key: 'feedback_recipient', value: form.feedback_recipient },
     ])
     ElMessage.success('设置已保存')
   } catch {} finally { saving.value = false }
@@ -48,6 +67,7 @@ async function handleSave() {
 
 <template>
   <div class="glass-card" style="padding:0;overflow:hidden;" v-loading="loading">
+    <!-- 剧本最大字数 -->
     <div class="setting-row">
       <div class="setting-row-left">
         <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
@@ -66,6 +86,7 @@ async function handleSave() {
 
     <div class="setting-divider" />
 
+    <!-- 每万字消耗积分 -->
     <div class="setting-row">
       <div class="setting-row-left">
         <div class="setting-row-icon" style="background:rgba(52,199,89,0.1);color:#34c759;">
@@ -84,6 +105,7 @@ async function handleSave() {
 
     <div class="setting-divider" />
 
+    <!-- 评分模型 -->
     <div class="setting-row">
       <div class="setting-row-left">
         <div class="setting-row-icon" style="background:rgba(88,86,214,0.1);color:#5856d6;">
@@ -103,6 +125,7 @@ async function handleSave() {
 
     <div class="setting-divider" />
 
+    <!-- AI 评分超时 -->
     <div class="setting-row">
       <div class="setting-row-left">
         <div class="setting-row-icon" style="background:rgba(255,149,0,0.1);color:#ff9500;">
@@ -116,6 +139,120 @@ async function handleSave() {
       <div class="setting-row-right">
         <el-input-number v-model="form.score_timeout" :min="0" :max="3600" :step="30" :controls="false" size="large" style="width:120px;" />
         <span class="setting-row-hint">{{ form.score_timeout === 0 ? '不限制' : Math.round(form.score_timeout / 60) + ' 分钟' }}</span>
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- 反馈邮箱设置标题 -->
+    <div style="padding:20px 28px 0;">
+      <div style="font-size:15px;font-weight:600;">反馈邮箱设置</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:3px;">用户提交反馈时使用的邮件通知配置</div>
+    </div>
+
+    <!-- SMTP 服务器 -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><Message /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">SMTP 服务器</div>
+          <div class="setting-row-desc">如 smtp.qq.com、smtp.163.com</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input v-model="form.smtp_host" placeholder="smtp.qq.com" size="large" style="width:220px;" />
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- SMTP 端口 -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><Position /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">SMTP 端口</div>
+          <div class="setting-row-desc">QQ/163 邮箱通常用 587</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input-number v-model="form.smtp_port" :min="1" :max="65535" :step="1" :controls="false" size="large" style="width:120px;" />
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- 发件邮箱 -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><User /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">发件邮箱</div>
+          <div class="setting-row-desc">SMTP 登录账号</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input v-model="form.smtp_username" placeholder="your@qq.com" size="large" style="width:240px;" />
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- 授权码 / 密码 -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><Lock /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">授权码 / 密码</div>
+          <div class="setting-row-desc">QQ/163 邮箱请填写授权码而非登录密码</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input v-model="form.smtp_password" placeholder="邮箱授权码" type="password" show-password size="large" style="width:240px;" />
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- 使用 TLS -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><Switch /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">使用 TLS</div>
+          <div class="setting-row-desc">端口 587 请开启，465 请关闭</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-switch v-model="form.smtp_use_tls" />
+      </div>
+    </div>
+
+    <div class="setting-divider" />
+
+    <!-- 收件人邮箱 -->
+    <div class="setting-row">
+      <div class="setting-row-left">
+        <div class="setting-row-icon" style="background:rgba(0,122,255,0.1);color:#007aff;">
+          <el-icon :size="22"><Stamp /></el-icon>
+        </div>
+        <div class="setting-row-body">
+          <div class="setting-row-title">收件人邮箱</div>
+          <div class="setting-row-desc">接收用户反馈通知的邮箱地址</div>
+        </div>
+      </div>
+      <div class="setting-row-right">
+        <el-input v-model="form.feedback_recipient" placeholder="recipient@qq.com" size="large" style="width:240px;" />
       </div>
     </div>
 
