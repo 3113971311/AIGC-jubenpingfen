@@ -152,6 +152,15 @@ function onSelect(index) {
   padding: 4px 8px;
 }
 
+.collapsed .el-menu-item {
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.collapsed .el-menu-item .el-icon {
+  margin: 0 !important;
+}
+
 .el-menu-item {
   border-radius: 12px;
   margin-bottom: 2px;
