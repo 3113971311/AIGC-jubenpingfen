@@ -3,14 +3,10 @@ set -e
 
 cd backend
 
-echo "[start.sh] Installing runtime dependencies to ./packages..."
-python3 -m pip install --no-cache-dir --target ./packages \
-  -r requirements.txt \
-  coze-coding-dev-sdk beautifulsoup4 lxml Pillow python-docx pypdf reportlab openai python-pptx 2>&1 || {
-    echo "[start.sh] Warning: some packages may have failed to install"
-}
-
+# 构建阶段已将 requirements.txt 安装到 ./packages（只读但可导入）
 export PYTHONPATH="./packages:${PYTHONPATH:-}"
+
+echo "[start.sh] PYTHONPATH: $PYTHONPATH"
 
 echo "[start.sh] Restoring database from object storage..."
 python3 db_backup.py restore || {

@@ -1,12 +1,23 @@
-"""SQLite 数据库对象存储备份与恢复模块（方案 A）"""
+"""SQLite 数据库对象存储备份与恢复模块（方案 A）—— 使用 boto3 直接操作 S3"""
 
 import os
 import shutil
+import sys
 import threading
 import time
 from pathlib import Path
 
-from coze_coding_dev_sdk.s3 import S3SyncStorage
+# 确保 packages 目录在 path 中（运行时通过 PYTHONPATH 注入）
+packages_dir = Path(__file__).parent / "packages"
+if str(packages_dir) not in sys.path:
+    sys.path.insert(0, str(packages_dir))
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError:
+    boto3 = None
+    ClientError = Exception
 
 DB_KEY = "db/script_scorer.db"
 UPLOADS_PREFIX = "uploads/"
@@ -14,151 +25,163 @@ DB_PATH = Path(os.getenv("DB_PATH", "/tmp/script_scorer.db"))
 UPLOADS_DIR = Path(os.getenv("UPLOAD_DIR", "/tmp/uploads"))
 
 
-_storage = None
+def _get_s3_client():
+    """使用 boto3 创建 S3 客户端，从环境变量读取配置"""
+    if boto3 is None:
+        raise RuntimeError("boto3 not available")
 
+    endpoint = os.environ.get("COZE_BUCKET_ENDPOINT_URL", "")
+    if not endpoint:
+        try:
+            from coze_workload_identity import Client as CozeEnvClient
+            coze_env_client = CozeEnvClient()
+            env_vars = coze_env_client.get_project_env_vars()
+            coze_env_client.close()
+            for env_var in env_vars:
+                if env_var.key == "COZE_BUCKET_ENDPOINT_URL":
+                    endpoint = env_var.value
+                    break
+        except Exception:
+            pass
 
-def _get_storage():
-    global _storage
-    if _storage is None:
-        endpoint = os.getenv("COZE_BUCKET_ENDPOINT_URL")
-        bucket = os.getenv("COZE_BUCKET_NAME")
-        if not endpoint or not bucket:
-            return None
-        _storage = S3SyncStorage(
-            endpoint_url=endpoint,
-            access_key="",
-            secret_key="",
-            bucket_name=bucket,
-            region="cn-beijing",
-        )
-    return _storage
+    if not endpoint:
+        raise RuntimeError("未配置存储端点：请设置 COZE_BUCKET_ENDPOINT_URL")
+
+    access_key = os.environ.get("COZE_BUCKET_ACCESS_KEY_ID", "")
+    secret_key = os.environ.get("COZE_BUCKET_SECRET_ACCESS_KEY", "")
+    region = os.environ.get("COZE_BUCKET_REGION", "")
+    bucket = os.environ.get("COZE_BUCKET_NAME", "")
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region,
+    )
+
+    # 注入 x-storage-token 头
+    def _inject_header(params, **kwargs):
+        try:
+            from coze_workload_identity import Client as CozeClient
+            coze_client = CozeClient()
+            try:
+                token = coze_client.get_access_token()
+            finally:
+                coze_client.close()
+            headers = params.setdefault("headers", {})
+            headers["x-storage-token"] = token
+        except Exception:
+            pass
+
+    client.meta.events.register("before-call.s3", _inject_header)
+    return client, bucket
 
 
 def restore_db():
-    """启动时从对象存储恢复数据库到 /tmp"""
-    storage = _get_storage()
-    if storage is None:
-        print("[db_backup] No object storage env vars, skip restore")
-        return False
-
+    """启动时从对象存储恢复数据库到本地 /tmp"""
     try:
-        if storage.file_exists(file_key=DB_KEY):
-            data = storage.read_file(file_key=DB_KEY)
-            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-            DB_PATH.write_bytes(data)
-            print(f"[db_backup] Restored database from {DB_KEY} -> {DB_PATH}")
-            return True
+        client, bucket = _get_s3_client()
+        if not bucket:
+            print("[backup] COZE_BUCKET_NAME not set, skipping restore")
+            return
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        client.download_file(bucket, DB_KEY, str(DB_PATH))
+        print(f"[backup] Database restored from s3://{bucket}/{DB_KEY}")
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "404":
+            print("[backup] No backup found in object storage, using fresh database")
         else:
-            print(f"[db_backup] No backup found at {DB_KEY}, using fresh db")
-            return False
+            print(f"[backup] Restore failed: {e}")
     except Exception as e:
-        print(f"[db_backup] Restore failed: {e}")
-        return False
+        print(f"[backup] Restore failed: {e}")
 
 
 def backup_db():
-    """将当前 /tmp 数据库备份到对象存储"""
-    storage = _get_storage()
-    if storage is None:
-        return False
-
-    if not DB_PATH.exists():
-        return False
-
+    """将本地数据库上传到对象存储"""
     try:
-        with DB_PATH.open("rb") as f:
-            key = storage.stream_upload_file(
-                fileobj=f,
-                file_name=DB_KEY,
-                content_type="application/x-sqlite3",
-            )
-        print(f"[db_backup] Backed up database -> {key}")
-        return True
+        if not DB_PATH.exists():
+            return
+        client, bucket = _get_s3_client()
+        if not bucket:
+            return
+        client.upload_file(str(DB_PATH), bucket, DB_KEY)
+        print(f"[backup] Database backed up to s3://{bucket}/{DB_KEY}")
     except Exception as e:
-        print(f"[db_backup] Backup failed: {e}")
-        return False
-
-
-def backup_uploads():
-    """备份 /tmp/uploads 下所有文件到对象存储"""
-    storage = _get_storage()
-    if storage is None:
-        return False
-
-    if not UPLOADS_DIR.exists():
-        return False
-
-    backed = 0
-    for fpath in UPLOADS_DIR.rglob("*"):
-        if fpath.is_file():
-            rel = fpath.relative_to(UPLOADS_DIR).as_posix()
-            key = f"{UPLOADS_PREFIX}{rel}"
-            try:
-                with fpath.open("rb") as f:
-                    storage.stream_upload_file(
-                        fileobj=f,
-                        file_name=key,
-                        content_type="application/octet-stream",
-                    )
-                backed += 1
-            except Exception as e:
-                print(f"[db_backup] Upload {rel} failed: {e}")
-    if backed:
-        print(f"[db_backup] Backed up {backed} upload files")
-    return backed > 0
+        print(f"[backup] Backup failed: {e}")
 
 
 def restore_uploads():
-    """从对象存储恢复 uploads 文件到 /tmp/uploads"""
-    storage = _get_storage()
-    if storage is None:
-        return False
-
+    """启动时恢复上传文件"""
     try:
-        result = storage.list_files(prefix=UPLOADS_PREFIX, max_keys=1000)
-        keys = result.get("keys", [])
-        if not keys:
-            return False
-
-        restored = 0
-        for key in keys:
-            rel = key[len(UPLOADS_PREFIX):] if key.startswith(UPLOADS_PREFIX) else key
-            fpath = UPLOADS_DIR / rel
-            fpath.parent.mkdir(parents=True, exist_ok=True)
-            data = storage.read_file(file_key=key)
-            fpath.write_bytes(data)
-            restored += 1
-        print(f"[db_backup] Restored {restored} upload files -> {UPLOADS_DIR}")
-        return True
+        client, bucket = _get_s3_client()
+        if not bucket:
+            return
+        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        paginator = client.get_paginator("list_objects_v2")
+        count = 0
+        for page in paginator.paginate(Bucket=bucket, Prefix=UPLOADS_PREFIX):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                rel_path = key[len(UPLOADS_PREFIX):]
+                if not rel_path:
+                    continue
+                local_path = UPLOADS_DIR / rel_path
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                client.download_file(bucket, key, str(local_path))
+                count += 1
+        if count:
+            print(f"[backup] Restored {count} uploaded files")
+        else:
+            print("[backup] No uploaded files to restore")
     except Exception as e:
-        print(f"[db_backup] Restore uploads failed: {e}")
-        return False
+        print(f"[backup] Uploads restore failed: {e}")
 
 
-def _backup_loop(interval_sec: int = 60):
-    """后台线程：每隔 interval_sec 秒备份一次数据库"""
+def backup_uploads():
+    """备份所有上传文件到对象存储"""
+    try:
+        client, bucket = _get_s3_client()
+        if not bucket:
+            return
+        count = 0
+        for fpath in UPLOADS_DIR.rglob("*"):
+            if fpath.is_file():
+                rel_path = fpath.relative_to(UPLOADS_DIR)
+                key = f"{UPLOADS_PREFIX}{rel_path}"
+                client.upload_file(str(fpath), bucket, key)
+                count += 1
+        if count:
+            print(f"[backup] Uploaded {count} files to object storage")
+    except Exception as e:
+        print(f"[backup] Uploads backup failed: {e}")
+
+
+def _backup_loop():
+    """后台线程：每 60 秒备份一次"""
     while True:
-        time.sleep(interval_sec)
+        time.sleep(60)
         backup_db()
         backup_uploads()
 
 
-def start_background_backup(interval_sec: int = 60):
-    """启动后台定时备份线程"""
-    t = threading.Thread(target=_backup_loop, args=(interval_sec,), daemon=True)
+def start_background_backup():
+    """启动后台定时备份线程（仅在 PROD 环境调用）"""
+    t = threading.Thread(target=_backup_loop, daemon=True)
     t.start()
-    print(f"[db_backup] Background backup started (every {interval_sec}s)")
+    print("[backup] Background backup thread started (interval=60s)")
 
 
 if __name__ == "__main__":
-    import sys
-    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    if cmd == "restore":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["restore", "backup"], nargs="?", default="restore")
+    args = parser.parse_args()
+
+    if args.command == "restore":
         restore_db()
         restore_uploads()
-    elif cmd == "backup":
+    elif args.command == "backup":
         backup_db()
         backup_uploads()
-    else:
-        restore_db()
-        restore_uploads()
