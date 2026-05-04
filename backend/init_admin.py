@@ -20,7 +20,12 @@ def init_admin():
         db.commit()
         print("管理员账号已创建: admin / admin123")
     else:
-        print("管理员账号已存在")
+        # 每次启动重置密码，确保不会因为恢复旧数据库导致密码错误
+        existing.password_hash = hash_password("admin123")
+        existing.is_admin = True
+        existing.is_active = True
+        db.commit()
+        print("管理员账号密码已重置: admin / admin123")
     db.close()
 
 
