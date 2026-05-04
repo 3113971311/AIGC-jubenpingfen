@@ -1,12 +1,11 @@
 [project]
-requires = [ "nodejs-24" ]
-
-deps = [ "git" ]
+requires = ["nodejs-24"]
+deps = ["git"]
 
 [dev]
-build = [ "bash", "./build.sh" ]
-run = [ "bash", "./start.sh" ]
+build = ["bash", "build.sh"]
+run = ["bash", "start.sh"]
 
 [deploy]
-build = [ "bash", "./build.sh" ]
-run = [ "bash", "./start.sh" ]
+build = ["bash", "build.sh"]
+run = ["bash", "start.sh"]

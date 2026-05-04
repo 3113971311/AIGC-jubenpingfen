@@ -36,7 +36,7 @@ const routes = [
       { path: '', redirect: '/admin/overview' },
       { path: 'overview', name: 'AdminOverview', component: () => import('../views/admin/AdminOverview.vue'), meta: { title: '概览' } },
       { path: 'users', name: 'AdminUsers', component: () => import('../views/admin/AdminUsers.vue'), meta: { title: '用户管理' } },
-      { path: 'models', name: 'AdminModels', component: () => import('../views/admin/AdminModels.vue'), meta: { title: '模型配置' } },
+      { path: 'models', redirect: '/admin/settings' },
       { path: 'scores', name: 'AdminScores', component: () => import('../views/admin/AdminScores.vue'), meta: { title: '评分记录' } },
       { path: 'settings', name: 'AdminSettings', component: () => import('../views/admin/AdminSettings.vue'), meta: { title: '系统设置' } },
     ],

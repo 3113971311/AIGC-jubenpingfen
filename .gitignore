@@ -15,9 +15,11 @@ backend/uploads/*
 # Database backups
 *.bak
 
+# Python packages installed at build time
+backend/packages/
+
 # Logs
 *.log
 
 # Environment
 .env
-backend/packages/

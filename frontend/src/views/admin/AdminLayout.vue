@@ -10,7 +10,6 @@ const mobileOpen = ref(false)
 const menuItems = [
   { path: '/admin/overview', label: '概览', icon: 'DataAnalysis' },
   { path: '/admin/users', label: '用户管理', icon: 'User' },
-  { path: '/admin/models', label: '模型配置', icon: 'Setting' },
   { path: '/admin/scores', label: '评分记录', icon: 'Document' },
   { path: '/admin/settings', label: '系统设置', icon: 'Tools' },
 ]
@@ -152,21 +151,22 @@ function onSelect(index) {
   padding: 4px 8px;
 }
 
-.collapsed .el-menu-item {
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-.collapsed .el-menu-item .el-icon {
-  margin: 0 !important;
-}
-
 .el-menu-item {
   border-radius: 12px;
   margin-bottom: 2px;
   height: 44px;
   line-height: 44px;
   transition: all 0.2s ease;
+}
+
+/* 折叠态菜单项居中 */
+.collapsed :deep(.el-menu-item) {
+  justify-content: center;
+  padding: 0 !important;
+}
+
+.collapsed :deep(.el-menu-item .el-icon) {
+  margin-right: 0;
 }
 
 .el-menu-item:hover {
