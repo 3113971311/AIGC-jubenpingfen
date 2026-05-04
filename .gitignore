@@ -9,10 +9,15 @@ node_modules/
 dist/
 
 # User uploads
-backend/uploads/
+backend/uploads/*
+!backend/uploads/.gitkeep
 
-# Build generated dependencies
-backend/packages/
+# Database backups
+*.bak
+
+# Logs
+*.log
 
 # Environment
 .env
+backend/packages/
