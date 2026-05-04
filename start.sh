@@ -3,11 +3,14 @@ set -e
 
 cd backend
 
-echo "[start.sh] Installing runtime dependencies..."
-python3 -m pip install --no-cache-dir \
-  coze-coding-dev-sdk beautifulsoup4 lxml Pillow python-docx pypdf reportlab openai 2>&1 | tail -3 || {
-    echo "[start.sh] Warning: pip install returned non-zero, continuing..."
+echo "[start.sh] Installing runtime dependencies to ./packages..."
+python3 -m pip install --no-cache-dir --target ./packages \
+  -r requirements.txt \
+  coze-coding-dev-sdk beautifulsoup4 lxml Pillow python-docx pypdf reportlab openai python-pptx 2>&1 || {
+    echo "[start.sh] Warning: some packages may have failed to install"
 }
+
+export PYTHONPATH="./packages:${PYTHONPATH:-}"
 
 echo "[start.sh] Restoring database from object storage..."
 python3 db_backup.py restore || {
