@@ -10,7 +10,7 @@ from main import app
 if os.getenv("COZE_PROJECT_ENV") == "PROD":
     try:
         from db_backup import start_background_backup
-        start_background_backup(interval_sec=60)
+        start_background_backup()  # interval is fixed at 60s in db_backup.py
     except Exception as e:
         print(f"[deploy_app] Failed to start backup thread: {e}")
 
