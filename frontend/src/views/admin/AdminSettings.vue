@@ -149,8 +149,11 @@ async function handleSave() {
     if (err.response) {
       console.error('Response status:', err.response.status)
       console.error('Response data:', err.response.data)
+      const detail = err.response.data?.detail || err.message
+      ElMessage.error(`保存失败: ${detail}`)
+    } else {
+      ElMessage.error(`保存失败: ${err.message}`)
     }
-    throw err
   } finally {
     saving.value = false
   }

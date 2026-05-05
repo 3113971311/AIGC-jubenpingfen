@@ -223,9 +223,18 @@ def update_settings(
     db: Session = Depends(get_db),
     _admin: User = Depends(get_admin_user),
 ):
-    for item in data:
-        set_config(db, item.key, item.value)
-    return {"ok": True}
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"update_settings called with {len(data)} items")
+    try:
+        for item in data:
+            logger.info(f"Setting {item.key} = {item.value!r}")
+            set_config(db, item.key, item.value)
+        return {"ok": True}
+    except Exception as e:
+        db.rollback()
+        logger.exception("update_settings failed")
+        raise HTTPException(status_code=500, detail=f"保存失败: {str(e)}") from e
 
 
 # ==================== 评分记录 & 统计 ====================
