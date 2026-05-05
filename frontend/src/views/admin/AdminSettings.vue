@@ -85,6 +85,8 @@ const form = reactive({
   max_chars: 100000,
   points_per_10000_chars: 1,
   active_model_id: '',
+  deep_model_id: '',
+  fast_model_id: '',
   score_timeout: 300,
   smtp_host: 'smtp.qq.com',
   smtp_port: 587,
@@ -109,6 +111,8 @@ onMounted(async () => {
       if (item.key === 'max_chars') form.max_chars = isNaN(n) ? 100000 : n
       if (item.key === 'points_per_10000_chars') form.points_per_10000_chars = isNaN(n) ? 1 : n
       if (item.key === 'active_model_id') form.active_model_id = v || ''
+      if (item.key === 'deep_model_id') form.deep_model_id = v || ''
+      if (item.key === 'fast_model_id') form.fast_model_id = v || ''
       if (item.key === 'score_timeout') form.score_timeout = isNaN(n) ? 300 : n
       if (item.key === 'smtp_host') form.smtp_host = v || 'smtp.qq.com'
       if (item.key === 'smtp_port') form.smtp_port = isNaN(n) ? 587 : n
@@ -127,6 +131,8 @@ async function handleSave() {
       { key: 'max_chars', value: String(form.max_chars) },
       { key: 'points_per_10000_chars', value: String(form.points_per_10000_chars) },
       { key: 'active_model_id', value: form.active_model_id },
+      { key: 'deep_model_id', value: form.deep_model_id },
+      { key: 'fast_model_id', value: form.fast_model_id },
       { key: 'score_timeout', value: String(form.score_timeout) },
       { key: 'smtp_host', value: form.smtp_host },
       { key: 'smtp_port', value: String(form.smtp_port) },
@@ -222,7 +228,7 @@ async function handleSave() {
     </el-dialog>
 
     <!-- ========== 系统设置 ========== -->
-    <div class="glass-card" style="padding:0;overflow:hidden;" v-loading="loading">
+    <div class="glass-card" style="padding:0;" v-loading="loading">
       <!-- 剧本最大字数 -->
       <div class="setting-row">
         <div class="setting-row-left">
@@ -261,19 +267,39 @@ async function handleSave() {
 
       <div class="setting-divider" />
 
-      <!-- 评分模型 -->
+      <!-- 深度评分模型 -->
       <div class="setting-row">
         <div class="setting-row-left">
           <div class="setting-row-icon" style="background:rgba(88,86,214,0.1);color:#5856d6;">
             <el-icon :size="22"><Cpu /></el-icon>
           </div>
           <div class="setting-row-body">
-            <div class="setting-row-title">评分模型</div>
-            <div class="setting-row-desc">用户评分时使用的 AI 模型</div>
+            <div class="setting-row-title">深度评分模型</div>
+            <div class="setting-row-desc">用户点击「深度评分」时使用的 AI 模型</div>
           </div>
         </div>
         <div class="setting-row-right">
-          <el-select v-model="form.active_model_id" placeholder="选择模型" style="width:260px;" size="large">
+          <el-select v-model="form.deep_model_id" placeholder="选择模型" style="width:260px;" size="large">
+            <el-option v-for="m in activeModels" :key="m.id" :label="`${m.provider} / ${m.model_name}`" :value="String(m.id)" />
+          </el-select>
+        </div>
+      </div>
+
+      <div class="setting-divider" />
+
+      <!-- 快速评分模型 -->
+      <div class="setting-row">
+        <div class="setting-row-left">
+          <div class="setting-row-icon" style="background:rgba(52,199,89,0.1);color:#34c759;">
+            <el-icon :size="22"><Cpu /></el-icon>
+          </div>
+          <div class="setting-row-body">
+            <div class="setting-row-title">快速评分模型</div>
+            <div class="setting-row-desc">用户点击「快速评分」时使用的 AI 模型</div>
+          </div>
+        </div>
+        <div class="setting-row-right">
+          <el-select v-model="form.fast_model_id" placeholder="选择模型" style="width:260px;" size="large">
             <el-option v-for="m in activeModels" :key="m.id" :label="`${m.provider} / ${m.model_name}`" :value="String(m.id)" />
           </el-select>
         </div>
@@ -448,7 +474,7 @@ async function handleSave() {
 .setting-row-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .setting-row-hint { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
 .setting-divider { height: 1px; background: rgba(0,0,0,0.05); margin: 0 28px; }
-.setting-footer { padding: 20px 28px; background: rgba(0,0,0,0.015); display: flex; }
+.setting-footer { position: sticky; bottom: 0; z-index: 10; padding: 16px 28px; background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; }
 
 @media (max-width: 640px) {
   .setting-row { flex-direction: column; align-items: flex-start; }

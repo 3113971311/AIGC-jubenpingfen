@@ -60,8 +60,8 @@ export const deleteScript = (id) => api.delete(`/scripts/${id}`)
 export const getActiveModels = () => api.get('/models/active')
 
 // Scoring
-export const scoreScript = (scriptId, modelConfigId) =>
-  api.post(`/scripts/${scriptId}/score`, { model_config_id: modelConfigId })
+export const scoreScript = (scriptId, modelConfigId, scoreType = '') =>
+  api.post(`/scripts/${scriptId}/score`, { model_config_id: modelConfigId, score_type: scoreType })
 export const getScore = (id) => api.get(`/scores/${id}`)
 export const getScoreProgress = (id) => api.get(`/scores/${id}/progress`)
 export const getScoreHistory = (params) => api.get('/scores/history', { params })

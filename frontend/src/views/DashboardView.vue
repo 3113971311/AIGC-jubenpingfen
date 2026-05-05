@@ -104,7 +104,7 @@ function stopPolling() {
 
 onUnmounted(() => { stopPolling() })
 
-async function handleScore(scriptId) {
+async function handleScore(scriptId, scoreType = '') {
   const script = scripts.value.find(s => s.id === scriptId)
   const title = script?.title || '剧本'
 
@@ -114,7 +114,7 @@ async function handleScore(scriptId) {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
 
   try {
-    const r = await scoreScript(scriptId, 0)
+    const r = await scoreScript(scriptId, 0, scoreType)
     const scoreId = r.data.id
 
     progressState.visible = true
@@ -280,14 +280,14 @@ async function handleFeedback() {
           <span>字数: {{ s.char_count.toLocaleString() }}</span>
           <span>{{ fmtDate(s.created_at) }}</span>
           <template v-if="scoreInfoMap[s.id]">
-            <span style="color:var(--accent)">{{ scoreInfoMap[s.id].provider }} {{ scoreInfoMap[s.id].model_name }}</span>
             <span v-if="scoreInfoMap[s.id].elapsed" style="color:var(--text-tertiary)">耗时 {{ scoreInfoMap[s.id].elapsed }}s</span>
           </template>
         </div>
         <div class="script-actions">
           <el-button v-if="scoringSet.includes(s.id)" type="warning" size="small" disabled>评分中...</el-button>
           <el-button v-else-if="scoredIds.includes(s.id)" type="success" size="small" disabled>已评分</el-button>
-          <el-button v-else type="primary" size="small" :loading="scoringId === s.id" @click="handleScore(s.id)">AI 评分</el-button>
+          <el-button v-else type="primary" size="small" :loading="scoringId === s.id" @click="handleScore(s.id, 'deep')">深度评分</el-button>
+          <el-button type="success" size="small" :loading="scoringId === s.id" @click="handleScore(s.id, 'fast')">快速评分</el-button>
           <el-button size="small" @click="router.push(`/score/${s.id}`)">查看</el-button>
           <el-button size="small" type="danger" @click="handleDelete(s.id)">删除</el-button>
         </div>

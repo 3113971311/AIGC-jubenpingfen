@@ -128,6 +128,7 @@ class ScriptDetailResponse(BaseModel):
 
 class ScoreRequest(BaseModel):
     model_config_id: int = 0
+    score_type: str = ""  # "deep" | "fast" | ""
 
 
 class ScoreResponse(BaseModel):

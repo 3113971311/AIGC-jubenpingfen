@@ -107,7 +107,14 @@ async def do_score(
         else:
             raise HTTPException(status_code=400, detail="该剧本已评分，不能重复评分")
 
-    model_id = req.model_config_id or int(get_config(db, "active_model_id", "0") or "0")
+    model_id = req.model_config_id
+    if not model_id:
+        if req.score_type == "deep":
+            model_id = int(get_config(db, "deep_model_id", "0") or "0")
+        elif req.score_type == "fast":
+            model_id = int(get_config(db, "fast_model_id", "0") or "0")
+        else:
+            model_id = int(get_config(db, "active_model_id", "0") or "0")
     if not model_id:
         raise HTTPException(status_code=400, detail="未配置评分模型")
 
