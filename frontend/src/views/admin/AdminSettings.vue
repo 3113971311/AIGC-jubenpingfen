@@ -127,22 +127,33 @@ onMounted(async () => {
 async function handleSave() {
   saving.value = true
   try {
-    await adminUpdateSettings([
-      { key: 'max_chars', value: String(form.max_chars) },
-      { key: 'points_per_10000_chars', value: String(form.points_per_10000_chars) },
-      { key: 'active_model_id', value: form.active_model_id },
-      { key: 'deep_model_id', value: form.deep_model_id },
-      { key: 'fast_model_id', value: form.fast_model_id },
-      { key: 'score_timeout', value: String(form.score_timeout) },
-      { key: 'smtp_host', value: form.smtp_host },
-      { key: 'smtp_port', value: String(form.smtp_port) },
-      { key: 'smtp_username', value: form.smtp_username },
-      { key: 'smtp_password', value: form.smtp_password },
+    const payload = [
+      { key: 'max_chars', value: String(form.max_chars ?? '') },
+      { key: 'points_per_10000_chars', value: String(form.points_per_10000_chars ?? '') },
+      { key: 'active_model_id', value: String(form.active_model_id ?? '') },
+      { key: 'deep_model_id', value: String(form.deep_model_id ?? '') },
+      { key: 'fast_model_id', value: String(form.fast_model_id ?? '') },
+      { key: 'score_timeout', value: String(form.score_timeout ?? '') },
+      { key: 'smtp_host', value: String(form.smtp_host ?? '') },
+      { key: 'smtp_port', value: String(form.smtp_port ?? '') },
+      { key: 'smtp_username', value: String(form.smtp_username ?? '') },
+      { key: 'smtp_password', value: String(form.smtp_password ?? '') },
       { key: 'smtp_use_tls', value: form.smtp_use_tls ? 'true' : 'false' },
-      { key: 'feedback_recipient', value: form.feedback_recipient },
-    ])
+      { key: 'feedback_recipient', value: String(form.feedback_recipient ?? '') },
+    ]
+    console.log('Saving settings payload:', JSON.stringify(payload))
+    await adminUpdateSettings(payload)
     ElMessage.success('设置已保存')
-  } catch {} finally { saving.value = false }
+  } catch (err) {
+    console.error('Save settings failed:', err)
+    if (err.response) {
+      console.error('Response status:', err.response.status)
+      console.error('Response data:', err.response.data)
+    }
+    throw err
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -280,6 +291,7 @@ async function handleSave() {
         </div>
         <div class="setting-row-right">
           <el-select v-model="form.deep_model_id" placeholder="选择模型" style="width:260px;" size="large">
+            <el-option label="未选择" value="" />
             <el-option v-for="m in activeModels" :key="m.id" :label="`${m.provider} / ${m.model_name}`" :value="String(m.id)" />
           </el-select>
         </div>
@@ -300,6 +312,7 @@ async function handleSave() {
         </div>
         <div class="setting-row-right">
           <el-select v-model="form.fast_model_id" placeholder="选择模型" style="width:260px;" size="large">
+            <el-option label="未选择" value="" />
             <el-option v-for="m in activeModels" :key="m.id" :label="`${m.provider} / ${m.model_name}`" :value="String(m.id)" />
           </el-select>
         </div>
