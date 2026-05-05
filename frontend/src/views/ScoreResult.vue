@@ -119,6 +119,9 @@ function renderContent(text) {
             <span class="dim-label">{{ d.label }}</span>
           </div>
           <div class="dim-value" :style="{color:getScoreColor(d.value)}">{{ d.value }}</div>
+          <div class="dim-bar-track">
+            <div class="dim-bar-fill" :style="{width: d.value + '%', background: d.color}" />
+          </div>
           <p class="dim-desc">{{ d.desc }}</p>
         </div>
       </div>
@@ -172,6 +175,8 @@ function renderContent(text) {
 .dim-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .dim-label { font-weight: 600; }
 .dim-value { font-size: 42px; font-weight: 700; letter-spacing: -1px; }
+.dim-bar-track { height: 6px; background: rgba(0,0,0,0.05); border-radius: 3px; margin: 10px 0 8px; overflow: hidden; }
+.dim-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.25, 0.1, 0.25, 1); }
 .dim-desc { font-size: 13px; color: var(--text-secondary); }
 
 .analysis-card { padding: 24px; }

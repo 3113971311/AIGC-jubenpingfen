@@ -81,7 +81,7 @@ async function loadScores() {
     const map = {}
     for (const s of r.data) {
       if (s.overall > 0 && !map[s.script_id]) {
-        map[s.script_id] = { elapsed: s.elapsed, provider: s.provider, model_name: s.model_name, overall: s.overall }
+        map[s.script_id] = { score_id: s.id, elapsed: s.elapsed, provider: s.provider, model_name: s.model_name, overall: s.overall }
       }
     }
     scoreInfoMap.value = map
@@ -280,6 +280,7 @@ async function handleFeedback() {
           <span>字数: {{ s.char_count.toLocaleString() }}</span>
           <span>{{ fmtDate(s.created_at) }}</span>
           <template v-if="scoreInfoMap[s.id]">
+            <span class="score-overall" :class="'score-lv' + Math.floor(scoreInfoMap[s.id].overall / 20)">{{ scoreInfoMap[s.id].overall }} 分</span>
             <span v-if="scoreInfoMap[s.id].elapsed" style="color:var(--text-tertiary)">耗时 {{ scoreInfoMap[s.id].elapsed }}s</span>
           </template>
         </div>
@@ -288,7 +289,7 @@ async function handleFeedback() {
           <el-button v-else-if="scoredIds.includes(s.id)" type="success" size="small" disabled>已评分</el-button>
           <el-button v-else type="primary" size="small" :loading="scoringId === s.id" @click="handleScore(s.id, 'deep')">深度评分</el-button>
           <el-button type="success" size="small" :loading="scoringId === s.id" @click="handleScore(s.id, 'fast')">快速评分</el-button>
-          <el-button size="small" @click="router.push(`/score/${s.id}`)">查看</el-button>
+          <el-button size="small" @click="router.push(`/score/${scoreInfoMap[s.id]?.score_id || s.id}`)">查看</el-button>
           <el-button size="small" type="danger" @click="handleDelete(s.id)">删除</el-button>
         </div>
       </div>
@@ -343,8 +344,14 @@ async function handleFeedback() {
 .text-form { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 .script-card { padding: 22px; }
 .script-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.script-meta { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+.script-meta { display: flex; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; align-items: center; }
 .script-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.score-overall { font-weight: 700; font-size: 14px; padding: 2px 10px; border-radius: 20px; background: rgba(0,0,0,0.04); }
+.score-lv0 { color: #ff3b30; background: rgba(255,59,48,0.08); }
+.score-lv1 { color: #ff9500; background: rgba(255,149,0,0.08); }
+.score-lv2 { color: #007aff; background: rgba(0,122,255,0.08); }
+.score-lv3 { color: #34c759; background: rgba(52,199,89,0.08); }
+.score-lv4 { color: #34c759; background: rgba(52,199,89,0.12); }
 
 .progress-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
 .progress-dialog { width: 400px; max-width: 90vw; padding: 32px 28px; text-align: center; }
