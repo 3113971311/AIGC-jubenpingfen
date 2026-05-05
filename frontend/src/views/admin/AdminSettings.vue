@@ -141,8 +141,9 @@ async function handleSave() {
       { key: 'smtp_use_tls', value: form.smtp_use_tls ? 'true' : 'false' },
       { key: 'feedback_recipient', value: String(form.feedback_recipient ?? '') },
     ]
-    console.log('Saving settings payload:', JSON.stringify(payload))
-    await adminUpdateSettings(payload)
+    const wrappedPayload = { configs: payload }
+    console.log('Saving settings payload:', JSON.stringify(wrappedPayload))
+    await adminUpdateSettings(wrappedPayload)
     ElMessage.success('设置已保存')
   } catch (err) {
     console.error('Save settings failed:', err)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -217,17 +218,21 @@ def get_settings(db: Session = Depends(get_db), _admin: User = Depends(get_admin
     return [SystemConfigItem(key=k, value=v) for k, v in configs.items()]
 
 
+class UpdateSettingsRequest(BaseModel):
+    configs: list[SystemConfigItem]
+
+
 @router.put("/settings")
 def update_settings(
-    data: list[SystemConfigItem],
+    data: UpdateSettingsRequest,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_admin_user),
 ):
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"update_settings called with {len(data)} items")
+    logger.info(f"update_settings called with {len(data.configs)} items")
     try:
-        for item in data:
+        for item in data.configs:
             logger.info(f"Setting {item.key} = {item.value!r}")
             set_config(db, item.key, item.value)
         return {"ok": True}
