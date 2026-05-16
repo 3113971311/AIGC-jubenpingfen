@@ -35,7 +35,6 @@ def list_users(
     q = db.query(User)
     if search:
         q = q.filter(User.username.contains(search))
-    total = q.count()
     users = q.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return users
 

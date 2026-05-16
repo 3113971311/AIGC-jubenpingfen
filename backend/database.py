@@ -19,20 +19,19 @@ def init_db():
     import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
-    # SQLite 兼容迁移：为已有 scores 表添加 progress 列
+    # SQLite 兼容迁移：补齐旧数据库缺失的评分进度字段。
     with engine.connect() as conn:
         cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(scores);").fetchall()]
         if "progress" not in cols:
             conn.exec_driver_sql("ALTER TABLE scores ADD COLUMN progress VARCHAR(500) DEFAULT '';")
             conn.commit()
-        # 重新获取列信息（可能已变更）
         cols2 = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(scores);").fetchall()]
         if "elapsed" not in cols2:
             conn.exec_driver_sql("ALTER TABLE scores ADD COLUMN elapsed FLOAT DEFAULT 0.0;")
             conn.commit()
 
-    # 设置系统默认配置
     from models import SystemConfig
+
     db = SessionLocal()
     defaults = {"max_chars": "100000", "points_per_10000_chars": "1", "active_model_id": "", "score_timeout": "600"}
     for k, v in defaults.items():

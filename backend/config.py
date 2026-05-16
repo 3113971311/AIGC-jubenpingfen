@@ -1,8 +1,8 @@
 import os
-import secrets
 import sys
 
 from dotenv import load_dotenv
+
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 _DEV_DEFAULTS = {
@@ -13,10 +13,10 @@ _DEV_DEFAULTS = {
 # JWT
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", _DEV_DEFAULTS["JWT_SECRET_KEY"])
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 2  # 2 hours (reduced from 7 days)
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 2  # 2 hours
 
 # Database
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/script_scorer.db" if os.getenv("COZE_PROJECT_ENV") == "PROD" else "sqlite:///./script_scorer.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./script_scorer.db")
 
 # Encryption key for API keys
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", _DEV_DEFAULTS["ENCRYPTION_KEY"])
@@ -30,9 +30,9 @@ SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 FEEDBACK_RECIPIENT = os.getenv("FEEDBACK_RECIPIENT", "3113971311@qq.com")
 
 # File upload
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/tmp/uploads" if os.getenv("COZE_PROJECT_ENV") == "PROD" else "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
-DEFAULT_MAX_CHARS = 100000  # 十万字
+DEFAULT_MAX_CHARS = 100000
 
 
 def _check_production_keys():

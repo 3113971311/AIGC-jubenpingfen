@@ -25,6 +25,7 @@ const progressState = reactive({
 })
 let progressTimer = null
 let pollTimer = null
+let scoreListTimer = null
 
 // 自动识别标题
 function extractTitle(text) {
@@ -93,6 +94,16 @@ async function loadScores() {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
     scoredIds.value = [...new Set([...successIds, ...scoringSet.value])]
   } catch {}
+  syncScoreListTimer()
+}
+
+function syncScoreListTimer() {
+  if (scoringSet.value.length > 0 && !scoreListTimer) {
+    scoreListTimer = setInterval(loadScores, 3000)
+  } else if (scoringSet.value.length === 0 && scoreListTimer) {
+    clearInterval(scoreListTimer)
+    scoreListTimer = null
+  }
 }
 
 onMounted(() => { loadScripts(); loadScores(); auth.refreshUser() })
@@ -102,7 +113,10 @@ function stopPolling() {
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null }
 }
 
-onUnmounted(() => { stopPolling() })
+onUnmounted(() => {
+  stopPolling()
+  if (scoreListTimer) { clearInterval(scoreListTimer); scoreListTimer = null }
+})
 
 async function handleScore(scriptId, scoreType = '') {
   const script = scripts.value.find(s => s.id === scriptId)
@@ -112,6 +126,7 @@ async function handleScore(scriptId, scoreType = '') {
   if (!scoringSet.value.includes(scriptId)) scoringSet.value.push(scriptId)
   if (!scoredIds.value.includes(scriptId)) scoredIds.value.push(scriptId)
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
+  syncScoreListTimer()
 
   try {
     const r = await scoreScript(scriptId, 0, scoreType)
@@ -139,6 +154,7 @@ async function handleScore(scriptId, scoreType = '') {
           scoringSet.value = scoringSet.value.filter(id => id !== scriptId)
           sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
           if (!scoredIds.value.includes(scriptId)) scoredIds.value.push(scriptId)
+          await loadScores()
           await auth.refreshUser()
           if (pr.data.overall > 0) {
             const elapsed = pr.data.elapsed ? ` (${pr.data.elapsed}秒)` : ''
@@ -170,6 +186,7 @@ async function handleScore(scriptId, scoreType = '') {
   } catch (e) {
     scoringSet.value = scoringSet.value.filter(id => id !== scriptId)
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(scoringSet.value))
+    syncScoreListTimer()
   } finally {
     scoringId.value = null
   }

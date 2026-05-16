@@ -1,18 +1,8 @@
 import os
-from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-# Import original app
 from main import app
-
-# Start background database backup thread
-if os.getenv("COZE_PROJECT_ENV") == "PROD":
-    try:
-        from db_backup import start_background_backup
-        start_background_backup()  # interval is fixed at 60s in db_backup.py
-    except Exception as e:
-        print(f"[deploy_app] Failed to start backup thread: {e}")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(BASE_DIR, "..", "frontend", "dist")

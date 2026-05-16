@@ -4,13 +4,8 @@ set -e
 echo "[start.sh] Starting uvicorn on 0.0.0.0:5000..."
 
 cd backend
-export COZE_PROJECT_ENV=PROD
-export PYTHONPATH="./packages:${PYTHONPATH:-}"
 
-mkdir -p /tmp/uploads /tmp/logs
-
-echo "[start.sh] Restoring database from object storage..."
-python3 db_backup.py restore 2>/dev/null || echo "[start.sh] No backup found, using fresh db"
+mkdir -p uploads
 
 echo "[start.sh] Initializing admin account..."
 python3 init_admin.py 2>/dev/null || echo "[start.sh] Warning: init_admin failed, continuing..."
