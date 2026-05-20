@@ -19,6 +19,59 @@
 - 反馈邮件：用户可提交反馈，系统可通过 SMTP 发送到指定邮箱。
 - 简单部署：提供 `build.sh` 和 `start.sh`，可构建前端并以 FastAPI 托管静态资源。
 
+## 快速启动
+
+### 方式一：生产模式（前后端一体化，单端口）
+
+构建前端静态资源后，由 FastAPI 同时托管 API 和前端页面，访问同一个地址即可使用：
+
+```bash
+# 1. 安装后端依赖
+cd backend
+pip install -r requirements.txt
+
+# 2. 构建前端
+cd ../frontend
+pnpm install && pnpm run build
+
+# 3. 启动服务
+cd ../backend
+python3 -m uvicorn deploy_app:app --host 0.0.0.0 --port 5000
+```
+
+浏览器打开 `http://localhost:5000`，前后端都在同一个端口。
+
+---
+
+### 方式二：开发模式（前后端分离，前端热重载）
+
+后端和前端分开运行，改前端代码时自动刷新，适合开发调试：
+
+```bash
+# 终端 1：启动后端（端口 8000，--reload 自动重载）
+cd backend
+pip install -r requirements.txt
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# 终端 2：启动前端 Vite 开发服务器（端口 5173）
+cd frontend
+pnpm install && pnpm run dev
+```
+
+浏览器打开 `http://localhost:5173`，Vite 自动将 `/api` 请求代理到后端的 `8000` 端口。
+
+---
+
+### 默认账号
+
+| 用户名 | 密码 |
+| --- | --- |
+| `admin` | `admin123` |
+
+如未初始化管理员，运行 `cd backend && python init_admin.py`。
+
+---
+
 ## 技术栈
 
 | 模块 | 技术 |
@@ -81,9 +134,9 @@ AIGC-jubenpingfen/
 
 完整依赖和部署安装命令见 [DEPENDENCIES.md](DEPENDENCIES.md)。
 
-## 本地开发
+## 本地开发（可选细节）
 
-### 1. 准备后端
+如果需要隔离 Python 环境，可以创建虚拟环境：
 
 ```bash
 cd backend
@@ -96,46 +149,15 @@ python -m venv venv
 source venv/bin/activate
 
 pip install -r requirements.txt
-python init_admin.py
-uvicorn main:app --reload
 ```
 
-后端默认地址是：
-
-```text
-http://127.0.0.1:8000
-```
-
-健康检查：
+启动方式见上方「快速启动」章节。健康检查：
 
 ```text
 GET http://127.0.0.1:8000/api/health
 ```
 
-默认管理员账号：
-
-```text
-用户名：admin
-密码：admin123
-```
-
-首次部署后请尽快在后台创建正式管理员或修改初始化脚本中的默认密码。
-
-### 2. 准备前端
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
-
-前端默认地址是：
-
-```text
-http://localhost:5173
-```
-
-`frontend/vite.config.js` 已将 `/api` 代理到 `http://127.0.0.1:8000`，本地开发时前后端可以分开启动。
+> 首次部署后请尽快在后台创建正式管理员账号或修改默认密码。
 
 ## 环境变量
 
