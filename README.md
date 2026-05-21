@@ -21,22 +21,37 @@
 
 ## 快速启动
 
-### 方式一：生产模式（前后端一体化，单端口）
-
-构建前端静态资源后，由 FastAPI 同时托管 API 和前端页面，访问同一个地址即可使用：
+### 前置步骤（两种方式都需要）
 
 ```bash
-# 1. 安装后端依赖
+# 1. 配置环境变量（复制 .env 示例并修改密钥）
 cd backend
+# 编辑 .env，至少修改 JWT_SECRET_KEY 和 ENCRYPTION_KEY
+
+# 2. 安装后端依赖
 pip install -r requirements.txt
 
-# 2. 构建前端
-cd ../frontend
+# 3. 创建上传目录
+mkdir -p uploads
+
+# 4. 初始化管理员账号
+python init_admin.py
+```
+
+---
+
+### 方式一：生产模式（前后端一体化，单端口）
+
+构建前端静态资源后，由 FastAPI 同时托管 API 和前端页面：
+
+```bash
+# 1. 构建前端
+cd frontend
 pnpm install && pnpm run build
 
-# 3. 启动服务
+# 2. 启动服务
 cd ../backend
-python3 -m uvicorn deploy_app:app --host 0.0.0.0 --port 5000
+python -m uvicorn deploy_app:app --host 0.0.0.0 --port 5000
 ```
 
 浏览器打开 `http://localhost:5000`，前后端都在同一个端口。
@@ -45,20 +60,19 @@ python3 -m uvicorn deploy_app:app --host 0.0.0.0 --port 5000
 
 ### 方式二：开发模式（前后端分离，前端热重载）
 
-后端和前端分开运行，改前端代码时自动刷新，适合开发调试：
+后端和前端分开运行，改代码时自动刷新，适合开发调试：
 
 ```bash
 # 终端 1：启动后端（端口 8000，--reload 自动重载）
 cd backend
-pip install -r requirements.txt
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-# 终端 2：启动前端 Vite 开发服务器（端口 5173）
+# 终端 2：启动前端 Vite 开发服务器
 cd frontend
 pnpm install && pnpm run dev
 ```
 
-浏览器打开 `http://localhost:5173`，Vite 自动将 `/api` 请求代理到后端的 `8000` 端口。
+Vite 默认使用 `5173` 端口（被占用时会自动切换），并将 `/api` 请求代理到后端 `8000` 端口。启动后查看终端输出的实际地址，例如 `http://localhost:5175`。
 
 ---
 
@@ -68,7 +82,7 @@ pnpm install && pnpm run dev
 | --- | --- |
 | `admin` | `admin123` |
 
-如未初始化管理员，运行 `cd backend && python init_admin.py`。
+如果忘记密码，重新运行 `cd backend && python init_admin.py` 即可重置。
 
 ---
 
