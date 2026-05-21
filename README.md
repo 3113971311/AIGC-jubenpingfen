@@ -47,7 +47,7 @@ python init_admin.py
 ```bash
 # 1. 构建前端
 cd frontend
-pnpm install && pnpm run build
+  pnpm install; if ($?) { pnpm run build }
 
 # 2. 启动服务
 cd ../backend
